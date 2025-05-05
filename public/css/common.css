@@ -1,0 +1,21 @@
+						#parent
+						{
+						font-weight:bold;font-size:20px;
+						}
+						#hr{
+						margin-top:-1%;margin-left:15%;color:blue
+						}
+						#span-parent
+						{
+						font-weight:bold;color:#5c5cec;
+						}
+						.offset-3 {
+							margin-left: 26%;
+						}
+						.offset-4 {
+							margin-left: 36%;
+						}
+						#top-header
+						{
+						border-right:1px solid #6c757d59;
+						}

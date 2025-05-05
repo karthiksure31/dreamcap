@@ -1,0 +1,225 @@
+$(function () {
+    var dataSet = [];
+    var countPlayers = 0;
+    var countWk = 0;
+    var countBat = 0;
+    var countAll = 0;
+    var countBowl = 0;
+    var countCreditPoints = 0;
+    var countMinMaxTeam1 = 0;
+    var countMinMaxTeam2 = 0;
+    var playerDetails = [];
+    var capVcDetails = [];
+    // checked team
+    $(".checkedTeam").on("click", function () {
+
+        var checkOrUnchecked = (this.checked ? 'checked' : 'unchecked');
+        var rowVal = $(this).val();
+        var teamOneID = parseInt($("#teamOneID").val());
+        var teamTwoID = parseInt($("#teamTwoID").val());
+        var thisID = $(this).attr('id');
+
+        var myArray = rowVal.split("|");
+
+        var points = parseFloat(myArray[1]);
+        var position = myArray[2];
+        var teamID = parseInt(myArray[3]);
+
+        if (checkOrUnchecked == "checked") {
+            $(".showHide").find("#" + thisID).show();
+            $(".showHide").find("#" + thisID).prop('checked', false);
+            playerDetails.push(thisID);
+            // count team players count
+            countPlayers += 1;
+
+            $("#totalPlayers").html(countPlayers);
+            if (teamID == teamOneID) {
+                countMinMaxTeam1 += 1;
+            }
+            if (teamID == teamTwoID) {
+                countMinMaxTeam2 += 1;
+            }
+            // count team positions
+            if (position == "Wk") {
+                countWk += 1;
+            }
+            if (position == "Bat") {
+                countBat += 1;
+            }
+            if (position == "All") {
+                countAll += 1;
+            }
+            if (position == "Bowl") {
+                countBowl += 1;
+            }
+        }
+        if (checkOrUnchecked == "unchecked") {
+            $(".showHide").find("#" + thisID).hide();
+            var Index = playerDetails.indexOf(thisID);
+            playerDetails.splice(Index, 1);
+
+            countPlayers -= 1;
+            $("#totalPlayers").html(countPlayers);
+            // count creadits
+            // count team players count
+            if (teamID == teamOneID) {
+                countMinMaxTeam1 -= 1;
+            }
+            if (teamID == teamTwoID) {
+                countMinMaxTeam2 -= 1;
+            }
+            // count team positions
+            if (position == "Wk") {
+                countWk -= 1;
+            }
+            if (position == "Bat") {
+                countBat -= 1;
+            }
+            if (position == "All") {
+                countAll -= 1;
+            }
+            if (position == "Bowl") {
+                countBowl -= 1;
+            }
+        }
+
+    });
+    // generate api
+    $("#generateTeam").on("click", function () {
+
+        var totalPlayer = countMinMaxTeam1 + countMinMaxTeam2;
+
+        if (totalPlayer < 11) {
+            toastr.warning('You must select at least 11 players');
+            return false;
+        } else {
+            // Minimum 1 player from each team
+            if (countMinMaxTeam1 > 0 && countMinMaxTeam2 > 0) {
+                // Minimum 1 player from each section
+                if ((countWk > 0) && (countBat > 0) && (countAll > 0) && (countBowl > 0)) {
+                    var captainVal = $("input[name='captain']:checked").val();
+                    var vcCaptainVal = $("input[name='vc_captain']:checked").val();
+
+                    if (captainVal && vcCaptainVal) {
+                        capVcDetails = [];
+                        capVcDetails.push(captainVal);
+                        capVcDetails.push(vcCaptainVal);
+                        playerDetails = playerDetails.filter(function (val) {
+                            return capVcDetails.indexOf(val) == -1;
+                        });
+                        var seriesID = $("#seriesID").val();
+                        $.ajax({
+                            url: createTeamUrl,
+                            cache: false,
+                            method: 'post',
+                            data: {
+                                series_id: seriesID,
+                                player_details: playerDetails,
+                                cap_vc_details: capVcDetails,
+                            },
+                            headers: {
+                                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                            },
+                            dataType: 'json',
+                            success: function (response) {
+                                // $("#captainName").html(response.captain);
+                                // $("#vcCaptainName").html(response.vc);
+                                // Update Captain and Vice-Captain UI
+                                $("#captainName").html(renderCaptainVc(response.captain));
+                                $("#vcCaptainName").html(renderCaptainVc(response.vc));
+                                showDataTabless(response.data);
+                                toastr.success('Successfully generated by your team');
+                            }
+                        });
+
+                    } else {
+                        toastr.warning('Choose your captain and vice captain');
+                        return false;
+                    }
+                } else {
+                    toastr.warning('Select a minimum of 1 wicketkeeper, 1 batsmen, 1 all-rounder, and 1 bowlers');
+                    return false;
+                }
+
+            } else {
+                toastr.warning('Select 1 minimum from one side');
+                return false;
+            }
+        }
+    });
+    showDataTabless(dataSet);
+});
+function showDataTabless(dataSet) {
+    $('#teamTable').DataTable({
+        bDestroy: true,
+        dom: 'Bfrtip',
+        processing: true,
+        buttons: [
+            'excelHtml5',
+            'csvHtml5',
+            'pdfHtml5'
+        ],
+        autoWidth: true,
+        data: dataSet.map(row => formatRow(row)), // Format each row before adding to DataTable
+        columns: [
+            { title: "No" },
+            { title: "Player 1" },
+            { title: "Player 2" },
+            { title: "Player 3" },
+            { title: "Player 4" },
+            { title: "Player 5" },
+            { title: "Player 6" },
+            { title: "Player 7" },
+            { title: "Player 8" },
+            { title: "Player 9" }
+        ],
+    });
+}
+
+// Function to format each row before adding to DataTable
+function formatRow(row) {
+
+    return row.map((player, index) => {
+        if (index === 0) return player; // Keep "No" column as is
+
+        if (!player.includes(" | ")) return player; // Skip if data isn't properly formatted
+
+        var playerDetails = player.split(" | "); // Split details
+        if (playerDetails.length < 5) return player; // Return original if missing parts
+
+        var playerImage = playerDetails[4] ? playerPathUrl + playerDetails[4] : playerPathUrl + 'images/Default.webp'; // Image path
+        var playerName = playerDetails[0]; // Player Name
+        var playerPosition = playerDetails[2]; // Player Position (WK, BAT, ALL, BOWL)
+
+        return `
+            <div class="player-info" style="text-align: center;">
+                <img src="${playerImage}" alt="${playerName}" class="player-img"
+                    style="width: 50px; height: 50px; border-radius: 50%; object-fit: cover;"
+                    onerror="this.onerror=null; this.src='${playerPathUrl}images/Default.webp';">
+                <br>
+                <strong>${playerName}</strong><br>
+                <small>${playerPosition}</small>
+            </div>
+        `;
+    });
+}
+// Function to render Captain and Vice-Captain details
+function renderCaptainVc(player) {
+    console.log("Processing row:", player);
+    if (!Array.isArray(player) || player.length < 5) return ""; // Ensure it's a valid array
+
+    var playerImage = player[4] ? playerPathUrl + player[4].trim() : playerPathUrl + 'images/Default.webp'; // Image path
+    var playerName = player[0].trim(); // Player Name
+    var playerPosition = player[2].trim(); // Player Position
+
+    return `
+        <div class="player-info" style="text-align: center;">
+            <img src="${playerImage}" alt="${playerName}" class="player-img"
+                style="width: 50px; height: 50px; border-radius: 50%; object-fit: cover;"
+                onerror="this.onerror=null; this.src='${playerPathUrl}images/Default.webp';">
+            <br>
+            <strong>${playerName}</strong><br>
+            <small>${playerPosition}</small>
+        </div>
+    `;
+}
